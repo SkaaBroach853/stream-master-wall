@@ -2,6 +2,7 @@ import { Header } from '@/components/Header';
 import { ControlBar } from '@/components/ControlBar';
 import { VideoGroup } from '@/components/VideoGroup';
 import { QueueSidebar } from '@/components/QueueSidebar';
+import { AutoClicker } from '@/components/AutoClicker';
 import { useVideoGroups } from '@/hooks/useVideoGroups';
 
 const Index = () => {
@@ -74,13 +75,14 @@ const Index = () => {
           
           {/* Queue Sidebar */}
           <div className="w-full lg:w-72 xl:w-80 flex-shrink-0">
-            <div className="lg:sticky lg:top-24">
+            <div className="lg:sticky lg:top-24 space-y-0">
               <QueueSidebar
                 queue={queue}
                 currentIndex={currentQueueIndex}
                 isRotating={isRotating}
                 onRemove={removeFromQueue}
               />
+              <AutoClicker />
             </div>
           </div>
         </div>
