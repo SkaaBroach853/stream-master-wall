@@ -1,8 +1,11 @@
 import { useState, useRef, useCallback } from 'react';
-import { MousePointer2, Play, Square, Settings } from 'lucide-react';
+import { MousePointer2, Play, Square, Target, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+type ClickTarget = 'video-panels' | 'play-buttons' | 'custom';
 
 export function AutoClicker() {
   const [isRunning, setIsRunning] = useState(false);
@@ -10,16 +13,58 @@ export function AutoClicker() {
   const [interval, setIntervalTime] = useState(1000);
   const [totalClicks, setTotalClicks] = useState(0);
   const [currentClicks, setCurrentClicks] = useState(0);
+  const [clickTarget, setClickTarget] = useState<ClickTarget>('video-panels');
+  const [customSelector, setCustomSelector] = useState('');
+  const [currentPanelIndex, setCurrentPanelIndex] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const clicksRemaining = useRef(0);
+  const panelIndexRef = useRef(0);
+
+  const getTargetSelector = useCallback(() => {
+    switch (clickTarget) {
+      case 'video-panels':
+        return '.video-panel iframe';
+      case 'play-buttons':
+        return '.video-panel';
+      case 'custom':
+        return customSelector || '.video-panel';
+      default:
+        return '.video-panel iframe';
+    }
+  }, [clickTarget, customSelector]);
 
   const simulateClick = useCallback(() => {
-    // Simulate clicking on video panels to trigger views
-    const panels = document.querySelectorAll('.video-panel iframe');
-    panels.forEach((panel) => {
-      // Trigger focus events to simulate interaction
-      panel.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
+    const selector = getTargetSelector();
+    const panels = document.querySelectorAll(selector);
+    
+    if (panels.length === 0) {
+      console.log('No elements found with selector:', selector);
+      return;
+    }
+
+    // Get current panel in sequence
+    const currentPanel = panels[panelIndexRef.current % panels.length];
+    
+    if (currentPanel) {
+      // Simulate click events
+      currentPanel.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+      currentPanel.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+      currentPanel.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      
+      // Visual feedback - briefly highlight the clicked element
+      if (currentPanel instanceof HTMLElement) {
+        currentPanel.style.outline = '2px solid hsl(var(--primary))';
+        currentPanel.style.outlineOffset = '2px';
+        setTimeout(() => {
+          currentPanel.style.outline = '';
+          currentPanel.style.outlineOffset = '';
+        }, 200);
+      }
+    }
+
+    // Move to next panel in sequence
+    panelIndexRef.current = (panelIndexRef.current + 1) % panels.length;
+    setCurrentPanelIndex(panelIndexRef.current);
     
     setTotalClicks((prev) => prev + 1);
     setCurrentClicks((prev) => prev + 1);
@@ -28,13 +73,15 @@ export function AutoClicker() {
     if (clicksRemaining.current <= 0) {
       stopClicking();
     }
-  }, []);
+  }, [getTargetSelector]);
 
   const startClicking = () => {
     if (isRunning) return;
     
     setIsRunning(true);
     setCurrentClicks(0);
+    panelIndexRef.current = 0;
+    setCurrentPanelIndex(0);
     clicksRemaining.current = clickCount;
 
     // Immediate first click
@@ -59,6 +106,13 @@ export function AutoClicker() {
   const resetStats = () => {
     setTotalClicks(0);
     setCurrentClicks(0);
+    panelIndexRef.current = 0;
+    setCurrentPanelIndex(0);
+  };
+
+  const getElementCount = () => {
+    const selector = getTargetSelector();
+    return document.querySelectorAll(selector).length;
   };
 
   return (
@@ -69,11 +123,59 @@ export function AutoClicker() {
       </div>
 
       <div className="space-y-4">
+        {/* Click Target Selection */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground flex items-center gap-1">
+            <Target className="w-3 h-3" />
+            Click Target
+          </Label>
+          <Select
+            value={clickTarget}
+            onValueChange={(value: ClickTarget) => setClickTarget(value)}
+            disabled={isRunning}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Select target" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="video-panels">Video Panel iFrames</SelectItem>
+              <SelectItem value="play-buttons">Video Panels (Container)</SelectItem>
+              <SelectItem value="custom">Custom Selector</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Custom Selector Input */}
+        {clickTarget === 'custom' && (
+          <div className="space-y-1.5">
+            <Label htmlFor="customSelector" className="text-xs text-muted-foreground">
+              CSS Selector
+            </Label>
+            <Input
+              id="customSelector"
+              type="text"
+              placeholder=".my-class, #my-id"
+              value={customSelector}
+              onChange={(e) => setCustomSelector(e.target.value)}
+              disabled={isRunning}
+              className="h-9 font-mono text-xs"
+            />
+          </div>
+        )}
+
+        {/* Element Count Display */}
+        <div className="bg-secondary/50 rounded-lg px-3 py-2">
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Elements Found:</span>
+            <span className="font-mono text-primary">{getElementCount()}</span>
+          </div>
+        </div>
+
         {/* Settings */}
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="clickCount" className="text-xs text-muted-foreground">
-              Number of Clicks
+              Total Clicks
             </Label>
             <Input
               id="clickCount"
@@ -110,6 +212,10 @@ export function AutoClicker() {
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Current Session:</span>
             <span className="font-mono text-primary">{currentClicks}/{clickCount}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Current Panel:</span>
+            <span className="font-mono text-primary">#{currentPanelIndex + 1}</span>
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Total Clicks:</span>
@@ -153,12 +259,12 @@ export function AutoClicker() {
             disabled={isRunning}
             title="Reset Stats"
           >
-            <Settings className="w-4 h-4" />
+            <RefreshCw className="w-4 h-4" />
           </Button>
         </div>
 
         <p className="text-[10px] text-muted-foreground text-center">
-          Simulates clicks on video panels to boost engagement
+          Clicks panels sequentially in order (1 → 2 → 3 → ...)
         </p>
       </div>
     </div>
