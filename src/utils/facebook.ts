@@ -39,7 +39,8 @@ export function extractFacebookVideoId(url: string): string | null {
 export function getFacebookEmbedUrl(url: string): string {
   // Encode the URL for embedding
   const encodedUrl = encodeURIComponent(url);
-  return `https://www.facebook.com/plugins/video.php?href=${encodedUrl}&show_text=false&autoplay=true&muted=true`;
+  // autoplay=true, muted=true for autoplay to work, and loop to play infinitely
+  return `https://www.facebook.com/plugins/video.php?href=${encodedUrl}&show_text=false&autoplay=true&muted=true&loop=true`;
 }
 
 export function isValidFacebookUrl(url: string): boolean {
