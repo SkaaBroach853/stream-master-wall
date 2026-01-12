@@ -84,8 +84,8 @@ export function VideoGroup({ group, onRemove, onToggleMute }: VideoGroupProps) {
         </div>
       </div>
       
-      {/* 5x4 Video Grid (20 panels) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+      {/* 4x5 Video Grid (20 panels) - Bigger panels */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 20 }).map((_, index) => (
           <VideoPanel 
             key={`${group.id}-${index}`}

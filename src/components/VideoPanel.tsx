@@ -11,17 +11,26 @@ interface VideoPanelProps {
 export function VideoPanel({ url, index, isMuted, isVisible }: VideoPanelProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
   
+  // Force autoplay by adding all necessary parameters
   const embedUrl = getFacebookEmbedUrl(url);
-  const mutedParam = isMuted ? '1' : '0';
-  const fullEmbedUrl = `${embedUrl}&mute=${mutedParam}`;
+
+  // Reset and reload when visibility changes to force autoplay
+  useEffect(() => {
+    if (isVisible) {
+      setIframeKey(prev => prev + 1);
+      setIsLoaded(false);
+    }
+  }, [isVisible]);
 
   useEffect(() => {
     setIsLoaded(false);
+    setIframeKey(prev => prev + 1);
   }, [url]);
 
   return (
-    <div className="video-panel aspect-video bg-muted/30 relative group">
+    <div className="video-panel aspect-video bg-muted/30 relative group min-h-[200px]">
       {/* Loading state */}
       {!isLoaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
@@ -39,8 +48,9 @@ export function VideoPanel({ url, index, isMuted, isVisible }: VideoPanelProps) 
       
       {isVisible && (
         <iframe
+          key={iframeKey}
           ref={iframeRef}
-          src={fullEmbedUrl}
+          src={embedUrl}
           className="w-full h-full"
           style={{ border: 'none', overflow: 'hidden' }}
           scrolling="no"
