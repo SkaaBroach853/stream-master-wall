@@ -6,17 +6,19 @@ interface VideoPanelProps {
   index: number;
   isMuted: boolean;
   isVisible: boolean;
+  uniqueId: string;
 }
 
-export function VideoPanel({ url, index, isMuted, isVisible }: VideoPanelProps) {
+export function VideoPanel({ url, index, isMuted, isVisible, uniqueId }: VideoPanelProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
   
-  // Force autoplay by adding all necessary parameters
-  const embedUrl = getFacebookEmbedUrl(url);
+  // Add unique parameters to make each panel count as a separate view
+  const baseEmbedUrl = getFacebookEmbedUrl(url);
+  const uniqueTimestamp = Date.now();
+  const embedUrl = `${baseEmbedUrl}&_t=${uniqueTimestamp}&_i=${index}&_u=${uniqueId}`;
 
-  // Reset and reload when visibility changes to force autoplay
   useEffect(() => {
     if (isVisible) {
       setIframeKey(prev => prev + 1);
@@ -30,34 +32,29 @@ export function VideoPanel({ url, index, isMuted, isVisible }: VideoPanelProps) 
   }, [url]);
 
   return (
-    <div className="video-panel aspect-video bg-muted/30 relative group min-h-[200px]">
-      {/* Loading state */}
+    <div className="video-panel aspect-video bg-muted/30 relative group min-h-[280px]">
       {!isLoaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs text-muted-foreground font-mono">Panel {index + 1}</span>
-          </div>
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       )}
       
-      {/* Panel number indicator */}
-      <div className="absolute top-2 left-2 z-10 px-2 py-1 rounded bg-background/80 text-xs font-mono text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-2 left-2 z-10 bg-background/80 px-2 py-1 rounded text-xs font-mono text-muted-foreground">
         #{index + 1}
       </div>
       
       {isVisible && (
         <iframe
-          key={iframeKey}
+          key={`${iframeKey}-${uniqueId}-${index}`}
           ref={iframeRef}
           src={embedUrl}
           className="w-full h-full"
           style={{ border: 'none', overflow: 'hidden' }}
           scrolling="no"
           frameBorder="0"
-          allowFullScreen
           allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
           onLoad={() => setIsLoaded(true)}
+          allowFullScreen
         />
       )}
     </div>
