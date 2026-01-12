@@ -32,7 +32,7 @@ export function VideoPanel({ url, index, isMuted, isVisible, uniqueId }: VideoPa
   }, [url]);
 
   return (
-    <div className="video-panel aspect-video bg-muted/30 relative group min-h-[280px]">
+    <div className="video-panel aspect-video bg-muted/30 relative group">
       {!isLoaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />

@@ -84,8 +84,8 @@ export function VideoGroup({ group, onRemove, onToggleMute }: VideoGroupProps) {
         </div>
       </div>
       
-      {/* 5x2 Video Grid (10 panels) - Each with unique ID for separate views */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      {/* 5x2 Video Grid (10 panels) - Compact fit */}
+      <div className="grid grid-cols-5 gap-2">
         {Array.from({ length: 10 }).map((_, index) => (
           <VideoPanel 
             key={`${group.id}-${index}`}
@@ -98,9 +98,15 @@ export function VideoGroup({ group, onRemove, onToggleMute }: VideoGroupProps) {
         ))}
       </div>
       
-      {/* Status indicator */}
-      <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-        <span className="font-mono">10 panels active (unique views)</span>
+      {/* View counter and status */}
+      <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs">
+        <div className="flex items-center gap-4">
+          <span className="font-mono text-muted-foreground">10 panels active</span>
+          <span className="flex items-center gap-1.5 text-primary font-semibold">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            ~{isVisible ? '10' : '0'} views/cycle
+          </span>
+        </div>
         <span className={`flex items-center gap-1.5 ${isVisible ? 'text-primary' : 'text-muted-foreground'}`}>
           <span className={`w-1.5 h-1.5 rounded-full ${isVisible ? 'bg-primary' : 'bg-muted-foreground'}`} />
           {isVisible ? 'Playing' : 'Paused'}
