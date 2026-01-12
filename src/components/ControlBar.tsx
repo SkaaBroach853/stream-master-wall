@@ -42,7 +42,7 @@ export function ControlBar({
     }
     onCreatePanels(url);
     setUrl('');
-    toast.success('Created 20-panel video group');
+    toast.success('Created 10-panel video group with unique views');
   };
 
   const handleAddToQueue = () => {
@@ -94,7 +94,7 @@ export function ControlBar({
           className="flex-1 sm:flex-none"
         >
           <Grid3X3 className="w-5 h-5" />
-          Create 20 Panels
+          Create 10 Panels
         </Button>
         
         <Button 
