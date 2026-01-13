@@ -3,7 +3,7 @@ import { Play, Pause, Shuffle, Grid3X3, Plus, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { isValidFacebookUrl } from '@/utils/facebook';
+import { isValidVideoUrl, detectVideoSource, getSourceLabel } from '@/utils/video';
 import { toast } from 'sonner';
 
 interface ControlBarProps {
@@ -33,30 +33,32 @@ export function ControlBar({
 
   const handleCreatePanels = () => {
     if (!url.trim()) {
-      toast.error('Please enter a Facebook video URL');
+      toast.error('Please enter a Facebook or Instagram video URL');
       return;
     }
-    if (!isValidFacebookUrl(url)) {
-      toast.error('Please enter a valid Facebook video URL');
+    if (!isValidVideoUrl(url)) {
+      toast.error('Please enter a valid Facebook or Instagram video URL');
       return;
     }
+    const source = detectVideoSource(url);
     onCreatePanels(url);
     setUrl('');
-    toast.success('Created 10-panel video group with unique views');
+    toast.success(`Created 10-panel ${getSourceLabel(source)} video group`);
   };
 
   const handleAddToQueue = () => {
     if (!url.trim()) {
-      toast.error('Please enter a Facebook video URL');
+      toast.error('Please enter a Facebook or Instagram video URL');
       return;
     }
-    if (!isValidFacebookUrl(url)) {
-      toast.error('Please enter a valid Facebook video URL');
+    if (!isValidVideoUrl(url)) {
+      toast.error('Please enter a valid Facebook or Instagram video URL');
       return;
     }
+    const source = detectVideoSource(url);
     onAddToQueue(url);
     setUrl('');
-    toast.success('Added to queue');
+    toast.success(`Added ${getSourceLabel(source)} video to queue`);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -70,18 +72,18 @@ export function ControlBar({
       {/* URL Input */}
       <div className="mb-6">
         <label className="text-sm font-medium text-muted-foreground mb-2 block">
-          Facebook Video URL
+          Video URL (Facebook / Instagram)
         </label>
         <Input
           type="url"
-          placeholder="https://www.facebook.com/watch?v=..."
+          placeholder="https://www.facebook.com/watch?v=... or https://www.instagram.com/reel/..."
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           onKeyDown={handleKeyDown}
           className="font-mono text-sm bg-input border-border focus:border-primary transition-colors"
         />
         <p className="text-xs text-muted-foreground mt-2">
-          Supports Facebook videos, Reels, and Watch links
+          Supports Facebook videos, Reels, Watch links & Instagram posts, Reels, IGTV
         </p>
       </div>
       

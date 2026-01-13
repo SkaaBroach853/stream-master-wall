@@ -1,5 +1,6 @@
 import { X, List, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { detectVideoSource, getSourceLabel } from '@/utils/video';
 import type { QueueItem } from '@/types/video';
 
 interface QueueSidebarProps {
@@ -56,6 +57,11 @@ export function QueueSidebar({ queue, currentIndex, isRotating, onRemove }: Queu
               <GripVertical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
               
               <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                    {getSourceLabel(detectVideoSource(item.url))}
+                  </span>
+                </div>
                 <span className={`text-xs font-mono block truncate ${
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 }`}>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Volume2, VolumeX, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { VideoPanel } from './VideoPanel';
+import { detectVideoSource, getSourceLabel } from '@/utils/video';
 import type { VideoGroup as VideoGroupType } from '@/types/video';
 
 interface VideoGroupProps {
@@ -42,6 +43,9 @@ export function VideoGroup({ group, onRemove, onToggleMute }: VideoGroupProps) {
       <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="w-2 h-2 rounded-full bg-primary pulse-ring" />
+          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary">
+            {getSourceLabel(detectVideoSource(group.url))}
+          </span>
           <a 
             href={group.url} 
             target="_blank" 
