@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getFacebookEmbedUrl } from '@/utils/facebook';
+import { getEmbedUrl, detectVideoSource } from '@/utils/video';
 
 interface VideoPanelProps {
   url: string;
@@ -14,10 +14,14 @@ export function VideoPanel({ url, index, isMuted, isVisible, uniqueId }: VideoPa
   const [isLoaded, setIsLoaded] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
   
-  // Add unique parameters to make each panel count as a separate view
-  const baseEmbedUrl = getFacebookEmbedUrl(url);
+  const source = detectVideoSource(url);
+  const baseEmbedUrl = getEmbedUrl(url);
   const uniqueTimestamp = Date.now();
-  const embedUrl = `${baseEmbedUrl}&_t=${uniqueTimestamp}&_i=${index}&_u=${uniqueId}`;
+  
+  // Add unique parameters based on source
+  const embedUrl = source === 'instagram' 
+    ? `${baseEmbedUrl}?_t=${uniqueTimestamp}&_i=${index}&_u=${uniqueId}`
+    : `${baseEmbedUrl}&_t=${uniqueTimestamp}&_i=${index}&_u=${uniqueId}`;
 
   useEffect(() => {
     if (isVisible) {
