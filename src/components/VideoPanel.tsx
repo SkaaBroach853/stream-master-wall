@@ -204,17 +204,18 @@ export function VideoPanel({ url, index, isMuted, isVisible, uniqueId }: VideoPa
         #{index + 1}
       </div>
       
-      <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Control buttons - always visible for auto-clicker */}
+      <div className="absolute top-2 right-2 z-10 flex gap-1">
         <button 
           onClick={triggerPlay}
-          className="bg-primary/90 p-1.5 rounded hover:bg-primary transition-colors"
+          className="bg-primary/90 p-1.5 rounded hover:bg-primary transition-colors opacity-70 group-hover:opacity-100"
           title="Force play"
         >
           <Play className="w-3 h-3 text-primary-foreground" />
         </button>
         <button 
           onClick={reloadIframe}
-          className="bg-background/80 p-1.5 rounded hover:bg-primary/20 transition-colors"
+          className="reload-btn bg-background/80 p-1.5 rounded hover:bg-primary/20 transition-colors opacity-70 group-hover:opacity-100"
           title="Reload video"
         >
           <RefreshCw className="w-3 h-3 text-muted-foreground" />
