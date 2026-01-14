@@ -108,7 +108,7 @@ export function AutoClicker() {
   }, []);
 
   const simulateHumanClick = useCallback((x: number, y: number, element?: Element) => {
-    const targetElement = element || document.elementFromPoint(x, y);
+    let targetElement = element || document.elementFromPoint(x, y);
     
     if (!targetElement) {
       console.log('No element at position:', x, y);
@@ -132,8 +132,22 @@ export function AutoClicker() {
     document.body.appendChild(ripple);
     setTimeout(() => ripple.remove(), 400);
 
+    // For iframes, we can't click inside due to cross-origin restrictions
+    // Instead, click any reload button in the video-panel, or the panel itself
+    if (targetElement instanceof HTMLIFrameElement) {
+      const panel = targetElement.closest('.video-panel');
+      if (panel) {
+        // Try to find and click the reload button
+        const reloadBtn = panel.querySelector('button');
+        if (reloadBtn) {
+          reloadBtn.click();
+          console.log('Clicked reload button on panel');
+          return;
+        }
+      }
+    }
+
     // Simulate realistic mouse event sequence like a human
-    const rect = targetElement.getBoundingClientRect();
     const clientX = x;
     const clientY = y;
     const screenX = window.screenX + x;
@@ -170,13 +184,9 @@ export function AutoClicker() {
         targetElement.dispatchEvent(new MouseEvent('mouseup', commonProps));
         targetElement.dispatchEvent(new MouseEvent('click', commonProps));
         
-        // For iframes, try to interact with content
-        if (targetElement instanceof HTMLIFrameElement) {
-          try {
-            targetElement.contentWindow?.focus();
-          } catch (e) {
-            // Cross-origin restriction, expected
-          }
+        // Also try native click for buttons
+        if (targetElement instanceof HTMLElement) {
+          targetElement.click();
         }
       }, 50 + Math.random() * 30); // Random delay 50-80ms
     }, 20 + Math.random() * 20); // Random delay 20-40ms
