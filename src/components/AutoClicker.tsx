@@ -1,12 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { MousePointer2, Play, Square, Target, RefreshCw, Crosshair } from 'lucide-react';
+import { MousePointer2, Play, Square, Target, RefreshCw, Crosshair, Zap, Repeat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 
-type ClickTarget = 'video-panels' | 'play-buttons' | 'custom';
+type ClickTarget = 'video-panels' | 'play-buttons' | 'reload-buttons' | 'custom';
 
 interface ClickPosition {
   x: number;
@@ -16,11 +17,12 @@ interface ClickPosition {
 
 export function AutoClicker() {
   const [isRunning, setIsRunning] = useState(false);
-  const [clickCount, setClickCount] = useState(10);
-  const [interval, setIntervalTime] = useState(1000);
+  const [isContinuousMode, setIsContinuousMode] = useState(true);
+  const [clickCount, setClickCount] = useState(100);
+  const [interval, setIntervalTime] = useState(500);
   const [totalClicks, setTotalClicks] = useState(0);
   const [currentClicks, setCurrentClicks] = useState(0);
-  const [clickTarget, setClickTarget] = useState<ClickTarget>('video-panels');
+  const [clickTarget, setClickTarget] = useState<ClickTarget>('play-buttons');
   const [customPositions, setCustomPositions] = useState<ClickPosition[]>([]);
   const [isPickingLocation, setIsPickingLocation] = useState(false);
   const [currentPanelIndex, setCurrentPanelIndex] = useState(0);
@@ -37,7 +39,6 @@ export function AutoClicker() {
       e.stopPropagation();
       
       const target = e.target as Element;
-      const rect = target.getBoundingClientRect();
       
       const position: ClickPosition = {
         x: e.clientX,
@@ -132,13 +133,28 @@ export function AutoClicker() {
     document.body.appendChild(ripple);
     setTimeout(() => ripple.remove(), 400);
 
-    // For iframes, we can't click inside due to cross-origin restrictions
-    // Instead, click any reload button in the video-panel, or the panel itself
+    // For iframes, click the play button or reload button in the panel
     if (targetElement instanceof HTMLIFrameElement) {
       const panel = targetElement.closest('.video-panel');
       if (panel) {
-        // Try to find and click the reload button
-        const reloadBtn = panel.querySelector('button');
+        // Try to click the play button overlay first
+        const playOverlay = panel.querySelector('button.absolute.inset-0') as HTMLButtonElement;
+        if (playOverlay) {
+          playOverlay.click();
+          console.log('Clicked play overlay on panel');
+          return;
+        }
+        
+        // Try primary play button
+        const playBtn = panel.querySelector('button.bg-primary\\/90') as HTMLButtonElement;
+        if (playBtn) {
+          playBtn.click();
+          console.log('Clicked play button on panel');
+          return;
+        }
+        
+        // Try reload button
+        const reloadBtn = panel.querySelector('button[title="Reload video"]') as HTMLButtonElement;
         if (reloadBtn) {
           reloadBtn.click();
           console.log('Clicked reload button on panel');
@@ -147,7 +163,7 @@ export function AutoClicker() {
       }
     }
 
-    // Simulate realistic mouse event sequence like a human
+    // Simulate realistic mouse event sequence
     const clientX = x;
     const clientY = y;
     const screenX = window.screenX + x;
@@ -165,32 +181,26 @@ export function AutoClicker() {
       buttons: 1,
     };
 
-    // Mouse enter and move first (like human approaching)
     targetElement.dispatchEvent(new MouseEvent('mouseenter', { ...commonProps, bubbles: false }));
     targetElement.dispatchEvent(new MouseEvent('mouseover', commonProps));
     targetElement.dispatchEvent(new MouseEvent('mousemove', commonProps));
 
-    // Small delay then mousedown
     setTimeout(() => {
       targetElement.dispatchEvent(new MouseEvent('mousedown', commonProps));
       
-      // Focus if focusable
       if (targetElement instanceof HTMLElement && targetElement.focus) {
         targetElement.focus();
       }
 
-      // Mouseup after short delay (simulating finger lift)
       setTimeout(() => {
         targetElement.dispatchEvent(new MouseEvent('mouseup', commonProps));
         targetElement.dispatchEvent(new MouseEvent('click', commonProps));
         
-        // Also try native click for buttons
         if (targetElement instanceof HTMLElement) {
           targetElement.click();
         }
-      }, 50 + Math.random() * 30); // Random delay 50-80ms
-    }, 20 + Math.random() * 20); // Random delay 20-40ms
-
+      }, 30 + Math.random() * 30);
+    }, 10 + Math.random() * 20);
   }, []);
 
   const getTargetElements = useCallback(() => {
@@ -198,11 +208,22 @@ export function AutoClicker() {
       case 'video-panels':
         return document.querySelectorAll('.video-panel iframe');
       case 'play-buttons':
-        return document.querySelectorAll('.video-panel');
+        // Get all play buttons and overlays in video panels
+        const playElements: Element[] = [];
+        document.querySelectorAll('.video-panel').forEach(panel => {
+          const playOverlay = panel.querySelector('button.absolute.inset-0');
+          const playBtn = panel.querySelector('button.bg-primary\\/90');
+          if (playOverlay) playElements.push(playOverlay);
+          else if (playBtn) playElements.push(playBtn);
+          else playElements.push(panel); // Fallback to panel itself
+        });
+        return playElements.length > 0 ? playElements : document.querySelectorAll('.video-panel');
+      case 'reload-buttons':
+        return document.querySelectorAll('.video-panel button[title="Reload video"]');
       case 'custom':
-        return null; // Will use customPositions instead
+        return null;
       default:
-        return document.querySelectorAll('.video-panel iframe');
+        return document.querySelectorAll('.video-panel');
     }
   }, [clickTarget]);
 
@@ -222,36 +243,38 @@ export function AutoClicker() {
     } else {
       const panels = getTargetElements();
       
-      if (!panels || panels.length === 0) {
+      if (!panels || (Array.isArray(panels) ? panels.length === 0 : panels.length === 0)) {
         console.log('No elements found');
         return;
       }
 
-      const currentPanel = panels[panelIndexRef.current % panels.length];
+      const panelsArray = Array.isArray(panels) ? panels : Array.from(panels);
+      const currentPanel = panelsArray[panelIndexRef.current % panelsArray.length];
       
       if (currentPanel) {
         const rect = currentPanel.getBoundingClientRect();
-        // Click in center of element
         const x = rect.left + rect.width / 2;
         const y = rect.top + rect.height / 2;
         
         simulateHumanClick(x, y, currentPanel);
       }
 
-      panelIndexRef.current = (panelIndexRef.current + 1) % panels.length;
+      panelIndexRef.current = (panelIndexRef.current + 1) % panelsArray.length;
       setCurrentPanelIndex(panelIndexRef.current);
     }
     
     setTotalClicks((prev) => prev + 1);
     setCurrentClicks((prev) => prev + 1);
-    clicksRemaining.current -= 1;
-
-    if (clicksRemaining.current <= 0) {
-      stopClicking();
+    
+    if (!isContinuousMode) {
+      clicksRemaining.current -= 1;
+      if (clicksRemaining.current <= 0) {
+        stopClicking();
+      }
     }
-  }, [clickTarget, customPositions, getTargetElements, simulateHumanClick]);
+  }, [clickTarget, customPositions, getTargetElements, simulateHumanClick, isContinuousMode]);
 
-  const startClicking = () => {
+  const startClicking = useCallback(() => {
     if (isRunning) return;
     
     if (clickTarget === 'custom' && customPositions.length === 0) {
@@ -265,24 +288,25 @@ export function AutoClicker() {
     setCurrentPanelIndex(0);
     clicksRemaining.current = clickCount;
 
+    toast.success(`Auto-clicker started in ${isContinuousMode ? 'continuous' : `${clickCount} clicks`} mode`);
+
     // Immediate first click
     simulateClick();
 
-    // Set up interval for remaining clicks
-    if (clickCount > 1) {
-      intervalRef.current = setInterval(() => {
-        simulateClick();
-      }, interval);
-    }
-  };
+    // Set up interval
+    intervalRef.current = setInterval(() => {
+      simulateClick();
+    }, interval);
+  }, [isRunning, clickTarget, customPositions.length, clickCount, isContinuousMode, interval, simulateClick]);
 
-  const stopClicking = () => {
+  const stopClicking = useCallback(() => {
     setIsRunning(false);
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-  };
+    toast.info('Auto-clicker stopped');
+  }, []);
 
   const resetStats = () => {
     setTotalClicks(0);
@@ -293,7 +317,6 @@ export function AutoClicker() {
 
   const clearLocations = () => {
     setCustomPositions([]);
-    // Remove all markers
     document.querySelectorAll('.click-marker').forEach(el => el.remove());
     toast.success('All locations cleared');
   };
@@ -303,7 +326,8 @@ export function AutoClicker() {
       return customPositions.length;
     }
     const elements = getTargetElements();
-    return elements?.length || 0;
+    if (!elements) return 0;
+    return Array.isArray(elements) ? elements.length : elements.length;
   };
 
   return (
@@ -311,9 +335,28 @@ export function AutoClicker() {
       <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border">
         <MousePointer2 className="w-5 h-5 text-primary" />
         <h3 className="font-semibold text-foreground">Auto Clicker</h3>
+        {isRunning && (
+          <span className="ml-auto flex items-center gap-1 text-xs text-primary animate-pulse">
+            <Zap className="w-3 h-3" />
+            Running
+          </span>
+        )}
       </div>
 
       <div className="space-y-4">
+        {/* Continuous Mode Toggle */}
+        <div className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2">
+            <Repeat className="w-4 h-4 text-primary" />
+            <Label className="text-sm font-medium">Continuous Mode</Label>
+          </div>
+          <Switch
+            checked={isContinuousMode}
+            onCheckedChange={setIsContinuousMode}
+            disabled={isRunning}
+          />
+        </div>
+
         {/* Click Target Selection */}
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground flex items-center gap-1">
@@ -329,8 +372,9 @@ export function AutoClicker() {
               <SelectValue placeholder="Select target" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="play-buttons">Play Buttons (Best for Videos)</SelectItem>
+              <SelectItem value="reload-buttons">Reload Buttons (Force Refresh)</SelectItem>
               <SelectItem value="video-panels">Video Panel iFrames</SelectItem>
-              <SelectItem value="play-buttons">Video Panels (Container)</SelectItem>
               <SelectItem value="custom">Custom Location (Pick on Screen)</SelectItem>
             </SelectContent>
           </Select>
@@ -389,23 +433,25 @@ export function AutoClicker() {
 
         {/* Settings */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="clickCount" className="text-xs text-muted-foreground">
-              Total Clicks
-            </Label>
-            <Input
-              id="clickCount"
-              type="number"
-              min={1}
-              max={1000}
-              value={clickCount}
-              onChange={(e) => setClickCount(Math.max(1, parseInt(e.target.value) || 1))}
-              disabled={isRunning}
-              className="h-9 font-mono"
-            />
-          </div>
+          {!isContinuousMode && (
+            <div className="space-y-1.5">
+              <Label htmlFor="clickCount" className="text-xs text-muted-foreground">
+                Total Clicks
+              </Label>
+              <Input
+                id="clickCount"
+                type="number"
+                min={1}
+                max={10000}
+                value={clickCount}
+                onChange={(e) => setClickCount(Math.max(1, parseInt(e.target.value) || 1))}
+                disabled={isRunning}
+                className="h-9 font-mono"
+              />
+            </div>
+          )}
 
-          <div className="space-y-1.5">
+          <div className={`space-y-1.5 ${isContinuousMode ? 'col-span-2' : ''}`}>
             <Label htmlFor="interval" className="text-xs text-muted-foreground">
               Interval (ms)
             </Label>
@@ -427,7 +473,9 @@ export function AutoClicker() {
         <div className="bg-secondary/50 rounded-lg p-3 space-y-2">
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Current Session:</span>
-            <span className="font-mono text-primary">{currentClicks}/{clickCount}</span>
+            <span className="font-mono text-primary">
+              {currentClicks}{!isContinuousMode ? `/${clickCount}` : ''}
+            </span>
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Current Target:</span>
@@ -437,12 +485,17 @@ export function AutoClicker() {
             <span className="text-muted-foreground">Total Clicks:</span>
             <span className="font-mono text-primary">{totalClicks}</span>
           </div>
-          {isRunning && (
+          {isRunning && !isContinuousMode && (
             <div className="w-full bg-muted rounded-full h-1.5 mt-2">
               <div 
                 className="bg-primary h-1.5 rounded-full transition-all duration-300"
                 style={{ width: `${(currentClicks / clickCount) * 100}%` }}
               />
+            </div>
+          )}
+          {isRunning && isContinuousMode && (
+            <div className="w-full bg-muted rounded-full h-1.5 mt-2 overflow-hidden">
+              <div className="bg-primary h-1.5 w-full animate-pulse" />
             </div>
           )}
         </div>
@@ -457,7 +510,7 @@ export function AutoClicker() {
               disabled={clickTarget === 'custom' && customPositions.length === 0}
             >
               <Play className="w-4 h-4" />
-              Start
+              Start Auto-Play
             </Button>
           ) : (
             <Button
@@ -481,7 +534,10 @@ export function AutoClicker() {
         </div>
 
         <p className="text-[10px] text-muted-foreground text-center">
-          Human-like clicks with ripple effect • Sequential order (1 → 2 → 3...)
+          {isContinuousMode 
+            ? '♾️ Clicks all panels forever to keep videos playing'
+            : `Clicks ${clickCount}x across all panels • Sequential order`
+          }
         </p>
       </div>
     </div>

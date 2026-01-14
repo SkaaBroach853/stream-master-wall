@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { getEmbedUrl, detectVideoSource } from '@/utils/video';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Play } from 'lucide-react';
 
 interface VideoPanelProps {
   url: string;
@@ -16,33 +16,95 @@ export function VideoPanel({ url, index, isMuted, isVisible, uniqueId }: VideoPa
   const [isLoaded, setIsLoaded] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
   const [showRetry, setShowRetry] = useState(false);
+  const [needsPlay, setNeedsPlay] = useState(true);
   const retryIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoPlayIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const source = detectVideoSource(url);
   const baseEmbedUrl = getEmbedUrl(url);
   const uniqueTimestamp = Date.now();
   
-  // Add unique parameters based on source
-  const embedUrl = source === 'instagram' 
-    ? `${baseEmbedUrl}&_t=${uniqueTimestamp}&_i=${index}&_u=${uniqueId}`
-    : `${baseEmbedUrl}&_t=${uniqueTimestamp}&_i=${index}&_u=${uniqueId}`;
+  // Add unique parameters to force fresh load
+  const embedUrl = `${baseEmbedUrl}&_t=${uniqueTimestamp}&_i=${index}&_u=${uniqueId}`;
 
   const reloadIframe = useCallback(() => {
     setIframeKey(prev => prev + 1);
     setIsLoaded(false);
     setShowRetry(false);
+    setNeedsPlay(true);
   }, []);
 
-  // Auto-reload every 30 seconds to keep videos playing (handles retry/ended states)
+  // Simulate click on iframe container to trigger play
+  const triggerPlay = useCallback(() => {
+    if (!containerRef.current || !iframeRef.current) return;
+    
+    const iframe = iframeRef.current;
+    const rect = iframe.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    // Create visual feedback
+    const ripple = document.createElement('div');
+    ripple.style.cssText = `
+      position: fixed;
+      left: ${centerX - 15}px;
+      top: ${centerY - 15}px;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: hsl(var(--primary) / 0.6);
+      pointer-events: none;
+      z-index: 10001;
+      animation: playRipple 0.6s ease-out forwards;
+    `;
+    document.body.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 600);
+
+    // Try to send play message to iframe (works for some embeds)
+    try {
+      iframe.contentWindow?.postMessage({ action: 'play' }, '*');
+      iframe.contentWindow?.postMessage({ event: 'command', func: 'playVideo' }, '*');
+      iframe.contentWindow?.postMessage('play', '*');
+    } catch (e) {
+      // Cross-origin, expected
+    }
+
+    // Focus the iframe to help with autoplay
+    iframe.focus();
+    
+    setNeedsPlay(false);
+  }, []);
+
+  // Auto-trigger play attempts periodically
+  useEffect(() => {
+    if (isVisible && isLoaded) {
+      // Initial play trigger
+      const initialTrigger = setTimeout(() => {
+        triggerPlay();
+      }, 1000);
+
+      // Keep trying to play every 5 seconds
+      autoPlayIntervalRef.current = setInterval(() => {
+        triggerPlay();
+      }, 5000);
+
+      return () => {
+        clearTimeout(initialTrigger);
+        if (autoPlayIntervalRef.current) {
+          clearInterval(autoPlayIntervalRef.current);
+        }
+      };
+    }
+  }, [isVisible, isLoaded, triggerPlay]);
+
+  // Auto-reload every 45 seconds to keep videos fresh and playing
   useEffect(() => {
     if (isVisible && isLoaded) {
       retryIntervalRef.current = setInterval(() => {
-        // For Instagram, reload more frequently to handle blocked embeds
-        if (source === 'instagram') {
-          reloadIframe();
-        }
-      }, 30000); // Every 30 seconds
+        // Reload to restart video
+        reloadIframe();
+      }, 45000);
     }
 
     return () => {
@@ -50,7 +112,7 @@ export function VideoPanel({ url, index, isMuted, isVisible, uniqueId }: VideoPa
         clearInterval(retryIntervalRef.current);
       }
     };
-  }, [isVisible, isLoaded, source, reloadIframe]);
+  }, [isVisible, isLoaded, reloadIframe]);
 
   // Detect if video failed to load after timeout
   useEffect(() => {
@@ -59,7 +121,7 @@ export function VideoPanel({ url, index, isMuted, isVisible, uniqueId }: VideoPa
         if (!isLoaded) {
           setShowRetry(true);
         }
-      }, 10000); // Show retry after 10 seconds of no load
+      }, 8000);
     }
 
     return () => {
@@ -74,7 +136,7 @@ export function VideoPanel({ url, index, isMuted, isVisible, uniqueId }: VideoPa
     if (showRetry) {
       const autoRetry = setTimeout(() => {
         reloadIframe();
-      }, 3000); // Auto-retry after 3 seconds
+      }, 2000);
       return () => clearTimeout(autoRetry);
     }
   }, [showRetry, reloadIframe]);
@@ -84,6 +146,7 @@ export function VideoPanel({ url, index, isMuted, isVisible, uniqueId }: VideoPa
       setIframeKey(prev => prev + 1);
       setIsLoaded(false);
       setShowRetry(false);
+      setNeedsPlay(true);
     }
   }, [isVisible]);
 
@@ -91,11 +154,35 @@ export function VideoPanel({ url, index, isMuted, isVisible, uniqueId }: VideoPa
     setIsLoaded(false);
     setIframeKey(prev => prev + 1);
     setShowRetry(false);
+    setNeedsPlay(true);
   }, [url]);
+
+  // Add play ripple animation
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.id = 'play-ripple-style';
+    if (!document.getElementById('play-ripple-style')) {
+      style.textContent = `
+        @keyframes playRipple {
+          0% { transform: scale(0.5); opacity: 1; }
+          100% { transform: scale(2.5); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    return () => {
+      const existing = document.getElementById('play-ripple-style');
+      if (existing) existing.remove();
+    };
+  }, []);
 
   const handleLoad = () => {
     setIsLoaded(true);
     setShowRetry(false);
+    // Trigger play after a short delay
+    setTimeout(() => {
+      triggerPlay();
+    }, 500);
   };
 
   return (
@@ -117,13 +204,34 @@ export function VideoPanel({ url, index, isMuted, isVisible, uniqueId }: VideoPa
         #{index + 1}
       </div>
       
-      <button 
-        onClick={reloadIframe}
-        className="absolute top-2 right-2 z-10 bg-background/80 p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/20"
-        title="Reload video"
-      >
-        <RefreshCw className="w-3 h-3 text-muted-foreground" />
-      </button>
+      <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button 
+          onClick={triggerPlay}
+          className="bg-primary/90 p-1.5 rounded hover:bg-primary transition-colors"
+          title="Force play"
+        >
+          <Play className="w-3 h-3 text-primary-foreground" />
+        </button>
+        <button 
+          onClick={reloadIframe}
+          className="bg-background/80 p-1.5 rounded hover:bg-primary/20 transition-colors"
+          title="Reload video"
+        >
+          <RefreshCw className="w-3 h-3 text-muted-foreground" />
+        </button>
+      </div>
+
+      {/* Play overlay for videos that need interaction */}
+      {isLoaded && needsPlay && (
+        <button
+          onClick={triggerPlay}
+          className="absolute inset-0 z-5 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors cursor-pointer"
+        >
+          <div className="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center">
+            <Play className="w-6 h-6 text-primary-foreground ml-1" />
+          </div>
+        </button>
+      )}
       
       {isVisible && (
         <iframe
@@ -134,7 +242,7 @@ export function VideoPanel({ url, index, isMuted, isVisible, uniqueId }: VideoPa
           style={{ border: 'none', overflow: 'hidden' }}
           scrolling="no"
           frameBorder="0"
-          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share; fullscreen"
           onLoad={handleLoad}
           allowFullScreen
         />
