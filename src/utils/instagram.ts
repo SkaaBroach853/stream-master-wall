@@ -35,10 +35,10 @@ export function extractInstagramVideoId(url: string): string | null {
 }
 
 export function getInstagramEmbedUrl(url: string): string {
-  // Instagram embed URL format
+  // Instagram embed URL format - requires captioned=false to hide caption
   // Clean URL first - remove query params
   const cleanUrl = url.split('?')[0];
   // Ensure URL ends with /
   const normalizedUrl = cleanUrl.endsWith('/') ? cleanUrl : `${cleanUrl}/`;
-  return `${normalizedUrl}embed/`;
+  return `${normalizedUrl}embed/captioned/?autoplay=1`;
 }
