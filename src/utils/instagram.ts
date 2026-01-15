@@ -40,6 +40,6 @@ export function getInstagramEmbedUrl(url: string): string {
   const cleanUrl = url.split('?')[0];
   // Ensure URL ends with /
   const normalizedUrl = cleanUrl.endsWith('/') ? cleanUrl : `${cleanUrl}/`;
-  // Use embed with autoplay parameter
-  return `${normalizedUrl}embed/?autoplay=1&cr=1&v=14&wp=540&rd=https%3A%2F%2Fwww.instagram.com`;
+  // Use embed - Instagram requires user interaction to play, so we make it clean
+  return `${normalizedUrl}embed/captioned/`;
 }
