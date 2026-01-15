@@ -55,14 +55,14 @@ const Index = () => {
             </label>
             <Input
               type="url"
-              placeholder="https://www.facebook.com/watch?v=... or https://www.instagram.com/reel/..."
+              placeholder="https://youtube.com/watch?v=... or https://facebook.com/... or https://instagram.com/reel/..."
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={handleKeyDown}
               className="font-mono text-sm bg-input border-border focus:border-primary transition-colors"
             />
             <p className="text-xs text-muted-foreground mt-2">
-              Supports Facebook videos, Reels, Watch links & Instagram posts, Reels, IGTV
+              Supports YouTube, Facebook videos, Reels, Watch links & Instagram posts, Reels, IGTV
             </p>
           </div>
           
